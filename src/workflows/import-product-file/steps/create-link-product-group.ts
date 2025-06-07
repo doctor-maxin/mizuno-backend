@@ -27,9 +27,9 @@ export const createLinkProductGroupStep = createStep(
       entity: "season",
       fields: [
         "id",
-        "product.*",
-        "product.metadata",
-        "product.pgroup.*"
+        "products.*",
+        "products.metadata",
+        "products.pgroup.*"
       ],
       filters: {
         id: season.id
@@ -54,7 +54,7 @@ export const createLinkProductGroupStep = createStep(
       ContainerRegistrationKeys.LOGGER
     )
 
-    const queriedProducts = queriedProductsFromSeasonData[0]?.product as unknown as ProductDTO[]
+    const queriedProducts = queriedProductsFromSeasonData[0]?.products as unknown as ProductDTO[]
 
     const mergedProducts = [...productsList.created, ...productsList.updated]
 
@@ -62,8 +62,8 @@ export const createLinkProductGroupStep = createStep(
 
     const result = {
       created: 0,
+      added: 0,
       updated: 0,
-      ignored: 0,
       errors: 0
     }
 
@@ -85,13 +85,22 @@ export const createLinkProductGroupStep = createStep(
         const isProductGroupExist = quriedProductsGroupData.find(pgroup => pgroup.product_code === product?.metadata?.product_code)
         // @ts-expect-error
         const isProductGroupLinkedToProduct = product?.pgroup?.id
-
+        const colorHexPair =  `${product?.metadata?.color_rus}:${product?.metadata?.color_hex}`
         if (!isProductGroupExist) {
           productGroup = await B2bModuleService.createPgroups({
             product_ids: [product.id],
             season_id: season.id,
             product_code: product?.metadata?.product_code as string,
-            title: product?.metadata?.style_name as string
+            title: product?.metadata?.style_name as string,
+            category: product?.metadata?.category,
+            metadata: {
+              handle: product?.handle,
+              is_shoes: product?.metadata?.is_shoes,
+              thumbnail: product?.thumbnail,
+              gender: product?.metadata?.gender,
+              price: product?.metadata?.price,
+              colors: [colorHexPair]
+            }
           })
 
           voidCreateProductProductGroupLink({ product, productGroup })
@@ -104,13 +113,32 @@ export const createLinkProductGroupStep = createStep(
           await B2bModuleService.updatePgroups({
             id: productGroup.id,
             product_ids: [...new Set([...productGroup.product_ids, product.id])],
-            title: product?.metadata?.style_name as string
+            title: product?.metadata?.style_name as string,
+            
+            metadata: { ...productGroup.metadata, 
+              is_shoes: product?.metadata?.is_shoes,
+              handle: productGroup.metadata?.product?.handle ? productGroup.metadata?.product?.handle : product?.handle,
+              thumbnail: productGroup.metadata?.thumbnail ? productGroup.metadata.thumbnail : product.thumbnail,
+              colors: Array.from(new Set([...productGroup.metadata.colors, colorHexPair]))
+            }
           })
           voidCreateProductProductGroupLink({ product, productGroup })
-          result.updated++
+          result.added++
         }
 
-        if (isProductGroupExist && isProductGroupLinkedToProduct) result.ignored++
+        if (isProductGroupExist && isProductGroupLinkedToProduct) 
+         {
+          productGroup = isProductGroupExist
+          await B2bModuleService.updatePgroups({
+            id: productGroup.id,
+            title: product?.metadata?.style_name as string,
+            metadata: { ...productGroup.metadata, 
+              handle: productGroup.metadata?.product?.handle ? productGroup.metadata?.product?.handle : product?.handle,
+              is_shoes: product?.metadata?.is_shoes,
+              colors: Array.from(new Set([...productGroup.metadata.colors, colorHexPair]))}
+          })
+          result.updated++
+         }
       } catch (error) {
         logger.error("Ошибка создания и привязки продуктовой группы:")
         logger.error(error)

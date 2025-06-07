@@ -3,7 +3,7 @@ import { CartDTO } from "@medusajs/framework/types"
 import { createRemoteLinkStep } from "@medusajs/medusa/core-flows"
 import { Modules } from "@medusajs/framework/utils"
 import { createSelectionListStep } from "./steps/create-selection"
-import { SELECTION_LIST_MODULE } from "../../modules/b2b"
+import { B2B_MODULE } from "../../modules/b2b"
 
 export type createSelectionListFromCartWorkflowInput = {
   cart: CartDTO
@@ -27,7 +27,7 @@ export const createSelectionListFromCartWorkflow = createWorkflow(
           [Modules.CART]: {
             cart_id: input.cart.id,
           },
-          [SELECTION_LIST_MODULE]: {
+          [B2B_MODULE]: {
             selection_id: selection.id,
           },
         }])

@@ -15,6 +15,7 @@ import { linkProductWithSeason } from "./steps/link-product-season";
 import { separateProductsToUpdateOrCreateStep } from "./steps/separate-products-to-create-or-update";
 import { createLinkProductGroupStep } from "./steps/create-link-product-group";
 import { syncToSalesChannel } from "./steps/sync-to-sc";
+import { createOrGetCategoriesStep } from "./steps/create-get-categories";
   
   type WorkflowInput = {
     fileData: {
@@ -35,11 +36,11 @@ import { syncToSalesChannel } from "./steps/sync-to-sc";
       const productFileStepInput = transform({input, mappingConfig},
         (data) => ({...data.input, mappingConfig: data.mappingConfig})
       )
-      // const testFileResult = testFileStep(productFileStepInput)
-
       const mappedDataFromTable = mapDataStep(productFileStepInput)
 
       const prepareProductsListOfJSONs = prepareDataStep(mappedDataFromTable)
+
+      const productsCategoriesDict = createOrGetCategoriesStep({season, rawProducts: prepareProductsListOfJSONs})
 
       const findAddImagesStepInput = transform({prepareProductsListOfJSONs, input},
         (data) => ({seasonString: data.input.seasonString, listOfProducts: data.prepareProductsListOfJSONs})
@@ -47,7 +48,11 @@ import { syncToSalesChannel } from "./steps/sync-to-sc";
 
       const productJSONsWithImages = findAddImagesStep(findAddImagesStepInput)
 
-      const separateProductsToUpdateOrCreate = separateProductsToUpdateOrCreateStep({season, productJSONsWithImages})
+      const productJSONsWithCategories = transform({productJSONsWithImages, productsCategoriesDict},
+        (data) => ( data.productJSONsWithImages.map(product => ({...product, category_ids: [data.productsCategoriesDict.season_root, data.productsCategoriesDict[product.metadata?.category]]})))
+      )
+
+      const separateProductsToUpdateOrCreate = separateProductsToUpdateOrCreateStep({season, productJSONsWithCategories})
 
       const batchProductsWorkflowResult =  batchProductsWorkflow
       .runAsStep({
@@ -60,7 +65,7 @@ import { syncToSalesChannel } from "./steps/sync-to-sc";
 
       const syncToSalesChannelStepResult = syncToSalesChannel({productsList: batchProductsWorkflowResult})
 
-      return new WorkflowResponse(linkProductGroups)
+      return new WorkflowResponse(batchProductsWorkflowResult)
     }
   )
   

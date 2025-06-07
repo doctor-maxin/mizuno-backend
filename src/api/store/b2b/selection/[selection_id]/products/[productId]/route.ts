@@ -3,7 +3,7 @@ import type {
   MedusaResponse,
 } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
-import { B2B_MODULE } from "../../../../../../modules/b2b";
+import { B2B_MODULE } from "../../../../../../../modules/b2b";
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const { productId } = req.params;

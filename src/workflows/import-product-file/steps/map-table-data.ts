@@ -50,7 +50,6 @@ export const mapDataStep = createStep(
             const columnIndex = headerIndexMap.get(mapping.name);
             if (columnIndex) {
                 const cellValue = row.getCell(columnIndex).value;
-                
                 if (cellValue !== null && cellValue !== undefined) {
                     let currentObject = resultJSON;
                     for (let i = 0; i < mapping.path.length - 1; i++) {
@@ -65,7 +64,7 @@ export const mapDataStep = createStep(
             }
         });
 
-        resultListOfJSON.push({...resultJSON, product: {...resultJSON.product, metadata: {...resultJSON.product.metadata, season: seasonString}}});
+        resultListOfJSON.push({...resultJSON, product: {...resultJSON.product, metadata: {...resultJSON.product?.metadata, season: seasonString}}});
     });
 
 

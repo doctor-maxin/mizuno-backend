@@ -14,7 +14,7 @@ const headerMappings = {
         'Категория': ['product', 'metadata', 'category']
     },
     optionalHeaders: {
-        'Цвет (рус)': ['variant', 'metadata', 'color_rus'],
+        'Цвет (рус)': ['product', 'metadata', 'color_rus'],
         'Размерная сетка': ['product', 'metadata', 'size_chart'],
         'Size cm': ['variant','metadata', 'size_cm'],
         'Материал верх': ['product', 'metadata', 'material_upper'],

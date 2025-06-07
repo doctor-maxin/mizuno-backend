@@ -20,11 +20,12 @@ export const createOrCreateSeasonStep = createStep(
       entity: "season",
       fields: [
         "id",
-        "title"
+        "title",
+        "handle"
       ]
     })
 
-    const findSeason = seasonsQuery.find(s => s.title === seasonString)
+    const findSeason = seasonsQuery.find(s => s.handle === seasonString)
 
 
     logger.info(JSON.stringify(findSeason, null, 2))
@@ -32,8 +33,19 @@ export const createOrCreateSeasonStep = createStep(
     if (findSeason) {
         return new StepResponse({season: findSeason})
     } else {
-        const newSeason = await B2bModuleService.createSeasons({title: seasonString})
-        new StepResponse({season: newSeason})
+        const newSeason = await B2bModuleService.createSeasons({title: seasonString, handle: seasonString})
+
+        const { data: seasonsQuery } = await query.graph({
+          entity: "season",
+          fields: [
+            "id",
+            "title",
+            "handle"
+          ]
+        })
+    
+        const findSeason = seasonsQuery.find(s => s.handle === seasonString)
+        new StepResponse({season: findSeason})
     }
     
 

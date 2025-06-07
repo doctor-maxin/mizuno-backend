@@ -1,1 +1,1 @@
-export * from "./s3-list"
+export * from "./minio"

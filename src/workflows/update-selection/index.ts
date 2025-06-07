@@ -3,38 +3,39 @@ import { emitEventStep } from "@medusajs/medusa/core-flows"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { B2B_MODULE } from "../../modules/b2b"
 import { container } from "@medusajs/framework"
+import B2bModuleService from "../../modules/b2b/service"
 
 
 export enum updateAction {
-    ADD = "add-products",
-    REMOVE = "remove-products",
+    ADD = "add-pgroup",
+    REMOVE = "remove-pgroup",
     CLOSE = "close-selection",
     OPEN = "open-selection"
 }
 
 export type updateSelectionListWorkflowInput = {
     selection_id: string
-    product_id?: string
+    pgroup_id?: string
     update_action: updateAction
 }
 
+export const addProductGroupStep = createStep(
+    "add-pgroup-step",
+    async ( input : updateSelectionListWorkflowInput,  { container }) => {
 
-export const addProductStep = createStep(
-    "add-product-step",
-    async ( input : updateSelectionListWorkflowInput) => {
-        const link = container.resolve(
-            ContainerRegistrationKeys.LINK
-        )
-       await link.create({
-            [B2B_MODULE]: {
-                selection_id: input.selection_id,
-            },
-            [Modules.PRODUCT]: {
-                product_id: input.product_id,
-            },
-        })
+        const {selection_id, pgroup_id} = input
 
-        return new StepResponse("Done")
+        const b2bModuleService = await container.resolve<B2bModuleService>('b2b')
+
+        const getSelection = await b2bModuleService.retrieveSelection(selection_id)
+
+        if (getSelection && pgroup_id) {
+                    const updatedSelection = await b2bModuleService.updateSelections( {...getSelection, pgroups: [...getSelection.pgroups, pgroup_id]})
+                    return new StepResponse(updatedSelection)
+
+        }
+
+        // return new StepResponse({message: "Не найден selection list или группа товаров не передана"})
       }
     
 )
@@ -66,9 +67,9 @@ export const updateSelectionListWorkflow = createWorkflow(
             (actionCheck), (actionCheck) => actionCheck.isAdd)
             .then(() => {
 
-                addProductStep(input)
+                addProductGroupStep(input)
 
-                return { message: "products-added" }
+                return { message: "pgroup-added" }
             })
 
         return new WorkflowResponse({

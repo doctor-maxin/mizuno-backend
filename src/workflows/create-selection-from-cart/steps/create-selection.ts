@@ -1,6 +1,7 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import SelectionListModuleService from "../../../modules/b2b/service"
-import { SELECTION_LIST_MODULE } from "../../../modules/b2b"
+import {B2B_MODULE } from "../../../modules/b2b"
+import B2bModuleService from "../../../modules/b2b/service"
 
 type CreateSelectionListStepInput = {
   title?: string
@@ -18,21 +19,17 @@ export const createSelectionListStep = createStep(
       return 
     }
 
-    const selectionListModuleService: SelectionListModuleService = container.resolve(
-      SELECTION_LIST_MODULE
+    const b2bModuleService: B2bModuleService = container.resolve(
+      B2B_MODULE
     )
 
-    const selectionList = await selectionListModuleService.createSelections(data)
-
-
-    logger.info(JSON.stringify(selectionList, null, 2))
-
+    const selectionList = await b2bModuleService.createSelections(data)
 
     return new StepResponse(selectionList, selectionList)
   },
   async (selectionList, { container }) => {
     const selectionListModuleService: SelectionListModuleService = container.resolve(
-        SELECTION_LIST_MODULE
+        B2B_MODULE
     )
 
     if (!selectionList) {

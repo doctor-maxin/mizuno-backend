@@ -7,7 +7,7 @@ import { ProductDTO } from "@medusajs/framework/types";
 
 type separateProductsToUpdateOrCreateStepInput = {
   season: Season,
-  productJSONsWithImages: ProductDTO[]
+  productJSONsWithCategories: ProductDTO[]
 }
 
 interface SeasonWithProducts {
@@ -17,8 +17,11 @@ interface SeasonWithProducts {
 
 export const separateProductsToUpdateOrCreateStep = createStep(
   "separate-products-to-create-or-update",
-  async ({ season, productJSONsWithImages }: separateProductsToUpdateOrCreateStepInput, { container }) => {
+  async ({ season, productJSONsWithCategories }: separateProductsToUpdateOrCreateStepInput, { container }) => {
 
+    const logger = container.resolve(
+          ContainerRegistrationKeys.LOGGER
+    )
     const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
     const { data } = await query.graph({
@@ -35,7 +38,7 @@ export const separateProductsToUpdateOrCreateStep = createStep(
 
     const seasonWithProducts = data[0] as unknown as SeasonWithProducts
 
-    if (!seasonWithProducts?.products?.length) return new StepResponse({ create: productJSONsWithImages, update: {} })
+    if (!seasonWithProducts?.products?.length) return new StepResponse({ create: productJSONsWithCategories, update: {} })
 
 
     const result = {
@@ -44,7 +47,7 @@ export const separateProductsToUpdateOrCreateStep = createStep(
     }
 
 
-    productJSONsWithImages.forEach(productJSON => {
+    productJSONsWithCategories.forEach(productJSON => {
       const existingProduct = seasonWithProducts.products.find(item => item.handle === productJSON.handle);
 
       if (existingProduct) {
