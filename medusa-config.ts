@@ -16,11 +16,20 @@ module.exports = defineConfig({
             authCors: process.env.AUTH_CORS!,
             jwtSecret: process.env.JWT_SECRET || "supersecret",
             cookieSecret: process.env.COOKIE_SECRET || "supersecret",
+            jwtExpiresIn: "30d",
+            authMethodsPerActor: {
+                user: ["emailpass", "otp-auth"],
+                customer: ["otp-auth"],
+                // manager: ["otp-auth"],
+            },
         },
     },
     modules: [
         {
             resolve: "./src/modules/b2b",
+        },
+        {
+            resolve: "./src/modules/manager",
         },
         {
             resolve: "@medusajs/medusa/file",
@@ -54,11 +63,31 @@ module.exports = defineConfig({
                         id: "emailpass",
                     },
                     {
-                        // if module provider is in a plugin, use `plugin-name/providers/my-auth`
                         resolve: "./src/modules/otp-auth",
                         id: "otp-auth",
                         options: {
-                            // provider options...
+                            jwtSecret: process.env.JWT_SECRET,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            resolve: "@medusajs/medusa/notification",
+            options: {
+                providers: [
+                    {
+                        resolve: "@medusajs/medusa/notification-local",
+                        id: "local",
+                    },
+                    {
+                        resolve: "./src/modules/unisender",
+                        id: "unisender",
+                        options: {
+                            channels: ["email"],
+                            url: process.env.UNISENDER_URL,
+                            apiKey: process.env.UNISENDER_API_KEY,
+                            otpTemplate: process.env.UNISENDER_OTP_TEMPLATE,
                         },
                     },
                 ],
@@ -168,6 +197,7 @@ module.exports = defineConfig({
                                 "handle",
                                 "colors",
                                 "is_shoes",
+                                "metadata",
                             ],
                             sortableAttributes: ["title", "price"],
                             filterableAttributes: [
