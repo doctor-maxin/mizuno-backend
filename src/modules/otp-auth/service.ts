@@ -59,7 +59,7 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
         authIdentityProviderService: AuthIdentityProviderService,
     ): Promise<AuthenticationResponse> {
         const { email } = data.body || {};
-
+        console.log("bom");
         if (!email) {
             return {
                 success: false,
@@ -124,6 +124,7 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
         authIdentityProviderService: AuthIdentityProviderService,
     ): Promise<AuthenticationResponse> {
         const { email, otp } = data.query || {};
+        console.log("bom 2");
 
         const isAfterRegister = await this.cacheService.get(
             `otp:after-register:${email}`,

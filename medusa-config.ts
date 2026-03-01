@@ -19,7 +19,7 @@ module.exports = defineConfig({
             jwtExpiresIn: "30d",
             authMethodsPerActor: {
                 user: ["emailpass", "otp-auth"],
-                customer: ["otp-auth"],
+                customer: ["emailpass", "otp-auth"],
                 // manager: ["otp-auth"],
             },
         },
@@ -241,9 +241,12 @@ module.exports = defineConfig({
         },
     ],
     admin: {
-        vite: (config) => {
-            config.server.allowedHosts = [".medusa.mizuno-b2b.shch.one"];
-            return config;
+        vite: () => {
+            return {
+                server: {
+                    allowedHosts: [".medusa.mizuno-b2b.shch.one"],
+                },
+            };
         },
     },
 });

@@ -1,47 +1,35 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
-export async function GET(
-  req: MedusaRequest,
-  res: MedusaResponse
-) {
+export async function GET(req: MedusaRequest, res: MedusaResponse) {
+    const id = req.params.id;
 
+    if (!id) res.status(400).json({ message: "Не указан id" });
 
-  const id = req.params.id
+    const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
 
-  if(!id) res.status(400).json({message: "Не указан id"});
-
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
-  
     const { data: categoriesQuery } = await query.graph({
-      entity: "product_category",
-      fields: [
-        "id",
-        "handle",
-        "metadata",
-        "title",
-        "name"
-      ],
-      filters: {
-        parent_category_id: id
-      }
-    })
+        entity: "product_category",
+        fields: ["id", "handle", "metadata", "title", "name"],
+        filters: {
+            parent_category_id: id,
+        },
+    });
 
-    const processQuery = categoriesQuery.map(category => ({
+    const processQuery = categoriesQuery.map((category) => ({
         id: category.id,
         name: category.name,
         handle: category.handle,
         image: category.metadata?.image || null,
-        resources_url: category.metadata?.resources || null
-    }))
+        resources_url: category.metadata?.resources || null,
+    }));
 
-  res.status(200).json({categories: processQuery});
+    res.status(200).json({ categories: processQuery });
 }
-
 
 //получаем список всех групп товаров из сезона и категории
 //сортируем его по правилам - для этого нужно иметь в списке данные по названию, цене, количеству цветов, по-умолчанию - с учетом мерча
-//после установленной сортировки получаем нужное количество групп для вывода на странице 
+//после установленной сортировки получаем нужное количество групп для вывода на странице
 
 // структура json
 

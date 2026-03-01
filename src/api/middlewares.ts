@@ -50,7 +50,13 @@ export default defineMiddlewares({
             matcher: "/store/customers/me",
             middlewares: [
                 (req, res, next) => {
-                    (req.allowed ??= []).push("groups");
+                    const pathname = (req.originalUrl || "")
+                        .split("?")[0]
+                        .replace(/\/+$/, "");
+
+                    if (pathname === "/store/customers/me") {
+                        (req.allowed ??= []).push("groups");
+                    }
                     next();
                 },
             ],
