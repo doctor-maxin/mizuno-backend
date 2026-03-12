@@ -24,6 +24,31 @@ type InjectedDependencies = {
     cache: ICacheService;
 };
 
+type OTPResendState = {
+    count: number;
+    nextAllowedAt: number;
+};
+
+const unwrapCacheValue = (rawState: unknown): unknown => {
+    if (!rawState || typeof rawState !== "object") {
+        return rawState;
+    }
+
+    const maybeWrapped = rawState as Record<string, unknown>;
+    if ("value" in maybeWrapped) {
+        return maybeWrapped.value;
+    }
+
+    if ("data" in maybeWrapped) {
+        return maybeWrapped.data;
+    }
+
+    return rawState;
+};
+
+const normalizeEmailForCacheKey = (email: string): string =>
+    email.trim().toLowerCase();
+
 class OTPAuthProvider extends AbstractAuthModuleProvider {
     static DISPLAY_NAME = "Basic OTP Auth";
     static identifier = "otp-auth";
@@ -54,12 +79,94 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
         }
     }
 
+    private getResendStateCacheKey(email: string): string {
+        return `otp:resend-state:${normalizeEmailForCacheKey(email)}`;
+    }
+
+    private getCooldownByCount(count: number): number {
+        if (count <= 3) {
+            return 0;
+        }
+
+        if (count <= 6) {
+            return 60;
+        }
+
+        if (count <= 9) {
+            return 300;
+        }
+
+        return -1;
+    }
+
+    private async getResendState(email: string): Promise<OTPResendState> {
+        const rawState = await this.cacheService.get(
+            this.getResendStateCacheKey(email),
+        );
+        const state = unwrapCacheValue(rawState);
+
+        if (!state) {
+            return {
+                count: 0,
+                nextAllowedAt: 0,
+            };
+        }
+
+        if (Buffer.isBuffer(state)) {
+            try {
+                const parsed = JSON.parse(
+                    state.toString("utf-8"),
+                ) as Partial<OTPResendState>;
+                return {
+                    count: Number(parsed.count) || 0,
+                    nextAllowedAt: Number(parsed.nextAllowedAt) || 0,
+                };
+            } catch {
+                return {
+                    count: 0,
+                    nextAllowedAt: 0,
+                };
+            }
+        }
+
+        if (typeof state === "string") {
+            try {
+                const parsed = JSON.parse(state) as Partial<OTPResendState>;
+                return {
+                    count: Number(parsed.count) || 0,
+                    nextAllowedAt: Number(parsed.nextAllowedAt) || 0,
+                };
+            } catch {
+                return {
+                    count: 0,
+                    nextAllowedAt: 0,
+                };
+            }
+        }
+
+        const parsed = state as Partial<OTPResendState>;
+        return {
+            count: Number(parsed.count) || 0,
+            nextAllowedAt: Number(parsed.nextAllowedAt) || 0,
+        };
+    }
+
+    private async saveResendState(
+        email: string,
+        state: OTPResendState,
+    ): Promise<void> {
+        await this.cacheService.set(
+            this.getResendStateCacheKey(email),
+            JSON.stringify(state),
+            60 * 60,
+        );
+    }
+
     async authenticate(
         data: AuthenticationInput,
         authIdentityProviderService: AuthIdentityProviderService,
     ): Promise<AuthenticationResponse> {
         const { email } = data.body || {};
-        console.log("bom");
         if (!email) {
             return {
                 success: false,
@@ -80,12 +187,47 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
             };
         }
 
+        const resendState = await this.getResendState(email);
+        const now = Date.now();
+
+        if (resendState.nextAllowedAt > now) {
+            const waitSeconds = Math.ceil(
+                (resendState.nextAllowedAt - now) / 1000,
+            );
+
+            return {
+                success: false,
+                location: "error",
+                error: JSON.stringify({
+                    message: `Повторная отправка будет доступна через ${waitSeconds} сек.`,
+                    retry: resendState.nextAllowedAt,
+                    code: 429,
+                }),
+            };
+        }
+
+        const nextCount = resendState.count + 1;
+        const cooldown = this.getCooldownByCount(nextCount);
+
+        if (cooldown < 0) {
+            return {
+                success: false,
+                location: "otp",
+                error: "Достигнут лимит отправки кодов. Попробуйте позже.",
+            };
+        }
+
         const { hashedOTP, otp } = await this.generateOTP();
 
         await authIdentityProviderService.update(email, {
             provider_metadata: {
                 otp: hashedOTP,
             },
+        });
+
+        await this.saveResendState(email, {
+            count: nextCount,
+            nextAllowedAt: now + cooldown * 1000,
         });
 
         await this.event_bus.emit(
@@ -124,7 +266,6 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
         authIdentityProviderService: AuthIdentityProviderService,
     ): Promise<AuthenticationResponse> {
         const { email, otp } = data.query || {};
-        console.log("bom 2");
 
         const isAfterRegister = await this.cacheService.get(
             `otp:after-register:${email}`,
@@ -194,6 +335,7 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
                 otp: null,
             },
         });
+        await this.cacheService.invalidate(this.getResendStateCacheKey(email));
 
         return {
             success: true,
@@ -206,7 +348,6 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
         authIdentityProviderService: AuthIdentityProviderService,
     ): Promise<AuthenticationResponse> {
         const { email } = data.body || {};
-        console.log("try enter", data.body);
         if (!email) {
             return {
                 success: false,
@@ -223,7 +364,6 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
         }
 
         const otp = await this.cacheService.get(`otp:pre-register:${email}`);
-        console.log("local otp", otp);
         if (otp !== data.body?.otp) {
             return {
                 success: false,
@@ -250,7 +390,7 @@ class OTPAuthProvider extends AbstractAuthModuleProvider {
             });
         }
 
-        await this.cacheService.set(`otp:after-register:${email}`);
+        await this.cacheService.set(`otp:after-register:${email}`, "1", 60 * 5);
 
         return {
             success: true,

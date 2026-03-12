@@ -18,6 +18,17 @@ import { useEffect, useMemo, useState } from "react";
 const RULES_TEXT_KEY = "rules_text";
 const PURCHASE_CATEGORIES_KEY = "purchase_categories";
 const GROUP_TYPE_KEY = "type";
+const DISCOUNT_TYPE_KEY = "discount_type";
+const PRICE_TYPE_KEY = "price_type";
+const DISCOUNT_PERCENT_KEY = "discount_percent";
+const DISCOUNT_VALUE_KEY = "discount_value";
+const PERCENT_KEY = "percent";
+const VALUE_KEY = "value";
+
+const toNumber = (value: unknown): number | null => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
 
 const toStringArray = (value: unknown): string[] => {
     if (!Array.isArray(value)) {
@@ -44,6 +55,10 @@ const CustomerGroupWidget = ({
     const [groupType, setGroupType] = useState<"default" | "discount">(
         "default",
     );
+    const [discountType, setDiscountType] = useState<"percentage" | "flat">(
+        "percentage",
+    );
+    const [discountAmount, setDiscountAmount] = useState<string>("");
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -58,12 +73,27 @@ const CustomerGroupWidget = ({
         );
         const initialType =
             metadata[GROUP_TYPE_KEY] === "discount" ? "discount" : "default";
+        const initialDiscountType =
+            metadata[DISCOUNT_TYPE_KEY] === "flat" ||
+            metadata[PRICE_TYPE_KEY] === "flat" ||
+            metadata[PRICE_TYPE_KEY] === "fixed"
+                ? "flat"
+                : "percentage";
+        const initialDiscountValue =
+            toNumber(metadata[DISCOUNT_PERCENT_KEY]) ??
+            toNumber(metadata[DISCOUNT_VALUE_KEY]) ??
+            toNumber(metadata[PERCENT_KEY]) ??
+            toNumber(metadata[VALUE_KEY]);
 
         setRulesText(initialRulesText);
         setPurchaseCategories(
             initialCategories.length ? initialCategories : [""],
         );
         setGroupType(initialType);
+        setDiscountType(initialDiscountType);
+        setDiscountAmount(
+            initialDiscountValue !== null ? String(initialDiscountValue) : "",
+        );
     }, [metadata]);
 
     const onChangeCategory = (index: number, value: string) => {
@@ -99,6 +129,41 @@ const CustomerGroupWidget = ({
         const normalizedCategories = purchaseCategories
             .map((item) => item.trim())
             .filter((item) => item.length > 0);
+        const normalizedDiscountAmount = toNumber(discountAmount);
+        const nextMetadata: Record<string, unknown> = {
+            ...metadata,
+            [RULES_TEXT_KEY]: rulesText.trim(),
+            [PURCHASE_CATEGORIES_KEY]: normalizedCategories,
+            [GROUP_TYPE_KEY]: groupType,
+        };
+
+        if (
+            groupType === "discount" &&
+            normalizedDiscountAmount !== null &&
+            normalizedDiscountAmount > 0
+        ) {
+            nextMetadata[DISCOUNT_TYPE_KEY] = discountType;
+            nextMetadata[PRICE_TYPE_KEY] = discountType;
+
+            if (discountType === "percentage") {
+                nextMetadata[DISCOUNT_PERCENT_KEY] = normalizedDiscountAmount;
+                nextMetadata[PERCENT_KEY] = normalizedDiscountAmount;
+                delete nextMetadata[DISCOUNT_VALUE_KEY];
+                delete nextMetadata[VALUE_KEY];
+            } else {
+                nextMetadata[DISCOUNT_VALUE_KEY] = normalizedDiscountAmount;
+                nextMetadata[VALUE_KEY] = normalizedDiscountAmount;
+                delete nextMetadata[DISCOUNT_PERCENT_KEY];
+                delete nextMetadata[PERCENT_KEY];
+            }
+        } else {
+            delete nextMetadata[DISCOUNT_TYPE_KEY];
+            delete nextMetadata[PRICE_TYPE_KEY];
+            delete nextMetadata[DISCOUNT_PERCENT_KEY];
+            delete nextMetadata[DISCOUNT_VALUE_KEY];
+            delete nextMetadata[PERCENT_KEY];
+            delete nextMetadata[VALUE_KEY];
+        }
 
         try {
             const response = await fetch(`/admin/customer-groups/${data.id}`, {
@@ -109,10 +174,7 @@ const CustomerGroupWidget = ({
                 credentials: "include",
                 body: JSON.stringify({
                     metadata: {
-                        ...metadata,
-                        [RULES_TEXT_KEY]: rulesText.trim(),
-                        [PURCHASE_CATEGORIES_KEY]: normalizedCategories,
-                        [GROUP_TYPE_KEY]: groupType,
+                        ...nextMetadata,
                     },
                 }),
             });
@@ -203,6 +265,65 @@ const CustomerGroupWidget = ({
                                 </Button>
                             </div>
                         </div>
+
+                        {groupType === "discount" ? (
+                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="discount-type">
+                                        Тип скидки
+                                    </Label>
+                                    <Select
+                                        value={discountType}
+                                        onValueChange={(value) =>
+                                            setDiscountType(
+                                                value as
+                                                    | "percentage"
+                                                    | "flat",
+                                            )
+                                        }
+                                    >
+                                        <Select.Trigger id="discount-type">
+                                            <Select.Value />
+                                        </Select.Trigger>
+                                        <Select.Content>
+                                            <Select.Item value="percentage">
+                                                Процент
+                                            </Select.Item>
+                                            <Select.Item value="flat">
+                                                Фиксированная
+                                            </Select.Item>
+                                        </Select.Content>
+                                    </Select>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <Label htmlFor="discount-amount">
+                                        {discountType === "percentage"
+                                            ? "Размер скидки, %"
+                                            : "Размер скидки, руб."}
+                                    </Label>
+                                    <Input
+                                        id="discount-amount"
+                                        type="number"
+                                        min={0}
+                                        step={
+                                            discountType === "percentage"
+                                                ? "1"
+                                                : "0.01"
+                                        }
+                                        value={discountAmount}
+                                        onChange={(e) =>
+                                            setDiscountAmount(e.target.value)
+                                        }
+                                        placeholder={
+                                            discountType === "percentage"
+                                                ? "Например: 25"
+                                                : "Например: 1500"
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-col gap-2">

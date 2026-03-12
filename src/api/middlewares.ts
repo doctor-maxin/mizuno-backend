@@ -47,6 +47,22 @@ export default defineMiddlewares({
             middlewares: [validateAndTransformBody(PostAuthPreRegisterSchema)],
         },
         {
+            matcher: "/auth/otp/request",
+            middlewares: [validateAndTransformBody(PostAuthPreRegisterSchema)],
+        },
+        {
+            matcher: "/store/b2b/preorders*",
+            middlewares: [authenticate("customer", ["session", "bearer"])],
+        },
+        {
+            matcher: "/store/b2b/history*",
+            middlewares: [authenticate("customer", ["session", "bearer"])],
+        },
+        {
+            matcher: "/store/b2b/orders*",
+            middlewares: [authenticate("customer", ["session", "bearer"])],
+        },
+        {
             matcher: "/store/customers/me",
             middlewares: [
                 (req, res, next) => {

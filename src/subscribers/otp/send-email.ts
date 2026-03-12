@@ -6,13 +6,18 @@ export default async function sendOtpHandler({
     event,
 }: SubscriberArgs<{ email: string; otp: string }>) {
     const notificationModuleService = container.resolve(Modules.NOTIFICATION);
+    const logger = container.resolve("logger");
 
-    await notificationModuleService.createNotifications({
-        to: event.data.email,
-        channel: "email",
-        template: "otp-template",
-        data: event.data,
-    });
+    try {
+        await notificationModuleService.createNotifications({
+            to: event.data.email,
+            channel: "email",
+            template: "otp-template",
+            data: event.data,
+        });
+    } catch (err) {
+        logger.error(err);
+    }
 }
 
 export const config: SubscriberConfig = {
