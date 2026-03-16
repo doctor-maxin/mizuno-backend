@@ -30,6 +30,9 @@ const normalizeEmailForCacheKey = (email: string): string =>
 const getResendStateCacheKey = (email: string) =>
     `otp:pre-register:resend-state:${normalizeEmailForCacheKey(email)}`;
 
+const getVerifyStateCacheKey = (email: string) =>
+    `otp:pre-register:verify-state:${normalizeEmailForCacheKey(email)}`;
+
 const getCooldownByCount = (count: number) => {
     if (count <= 3) {
         return 0;
@@ -117,8 +120,10 @@ export const POST = async (
 
     if (resendState.nextAllowedAt > now) {
         return res.status(429).json({
+            type: "not_allowed",
             message: "Повторная отправка временно недоступна",
-            next_retry_at: new Date(resendState.nextAllowedAt).toISOString(),
+            code: "429",
+            reset_at: new Date(resendState.nextAllowedAt).toISOString(),
         });
     }
 
@@ -127,8 +132,10 @@ export const POST = async (
 
     if (cooldown < 0) {
         return res.status(429).json({
+            type: "not_allowed",
             message: "Достигнут лимит отправки кодов",
-            next_retry_at: null,
+            code: "429",
+            reset_at: null,
         });
     }
 
@@ -145,6 +152,7 @@ export const POST = async (
         }),
         60 * 60,
     );
+    await cacheService.invalidate(getVerifyStateCacheKey(email));
 
     await eventBus.emit(
         {
@@ -157,5 +165,5 @@ export const POST = async (
         {},
     );
 
-    return res.status(200).json({ message: "OTP отправлен" });
+    return res.status(200).json({ success: true, location: "otp" });
 };

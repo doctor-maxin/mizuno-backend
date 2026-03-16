@@ -8,7 +8,12 @@ import {
 } from "@medusajs/framework/http";
 import { z } from "zod";
 import multer from "multer";
-import { PostAuthPreRegisterSchema } from "./auth/validators";
+import {
+    PostAuthPasswordLoginSchema,
+    PostAuthOtpRegisterSchema,
+    PostAuthOtpVerifySchema,
+    PostAuthPreRegisterSchema,
+} from "./auth/validators";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -49,6 +54,20 @@ export default defineMiddlewares({
         {
             matcher: "/auth/otp/request",
             middlewares: [validateAndTransformBody(PostAuthPreRegisterSchema)],
+        },
+        {
+            matcher: "/auth/otp/verify",
+            middlewares: [validateAndTransformBody(PostAuthOtpVerifySchema)],
+        },
+        {
+            matcher: "/auth/otp/register",
+            middlewares: [validateAndTransformBody(PostAuthOtpRegisterSchema)],
+        },
+        {
+            matcher: "/auth/password/login",
+            middlewares: [
+                validateAndTransformBody(PostAuthPasswordLoginSchema),
+            ],
         },
         {
             matcher: "/store/b2b/preorders*",
