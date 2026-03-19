@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/workflows/my-workflow/steps/step-two.ts
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"

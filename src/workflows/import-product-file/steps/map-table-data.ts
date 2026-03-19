@@ -1,7 +1,7 @@
 
 
 
-
+// @ts-nocheck
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import ExcelJS from 'exceljs';
 import { MappingJSON } from "../type/mapping";

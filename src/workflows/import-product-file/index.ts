@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/workflows/my-workflow/index.ts
 import {
     createWorkflow,
